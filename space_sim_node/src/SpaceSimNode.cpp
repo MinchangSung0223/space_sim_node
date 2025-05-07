@@ -126,13 +126,13 @@ private:
     static const std::array<std::string, 7> names = {"qw","qx","qy","qz","x","y","z"};
     msg.name.assign(names.begin(), names.end());
     msg.position.resize(7);
-    msg.position[0] = pose7(3);
-    msg.position[1] = pose7(4);
-    msg.position[2] = pose7(5);
-    msg.position[3] = pose7(6);
-    msg.position[4] = pose7(0);
-    msg.position[5] = pose7(1);
-    msg.position[6] = pose7(2);
+    msg.position[0] = pose7(1);
+    msg.position[1] = pose7(2);
+    msg.position[2] = pose7(3);
+    msg.position[3] = pose7(0);
+    msg.position[4] = pose7(4);
+    msg.position[5] = pose7(5);
+    msg.position[6] = pose7(6);
     pub->publish(msg);
   }
 
