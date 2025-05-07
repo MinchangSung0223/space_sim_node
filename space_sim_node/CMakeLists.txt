@@ -17,7 +17,14 @@ include_directories(
 
 # Sources
 add_executable(space_sim_node src/SpaceSimNode.cpp)
+
+# Link against shared SpaceSim library
+set(SPACE_SIM_LIB_PATH ${CMAKE_CURRENT_SOURCE_DIR}/lib/libSpaceSim.so)
+add_library(SpaceSim SHARED IMPORTED)
+set_target_properties(SpaceSim PROPERTIES IMPORTED_LOCATION ${SPACE_SIM_LIB_PATH})
+
 target_link_libraries(space_sim_node SpaceSim)
+
 ament_target_dependencies(space_sim_node
   rclcpp
   geometry_msgs
