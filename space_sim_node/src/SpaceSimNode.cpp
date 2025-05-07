@@ -76,7 +76,7 @@ private:
     publishPose(sim_.TGT_SatPos, tgt_pose_pub_);
     publishTwist(sim_.CRS_SatVel, crs_twist_pub_);
     publishTwist(sim_.TGT_SatVel, tgt_twist_pub_);
-    publishJoint(sim_.q, sim_.qdot, crs_joint_pub_);
+    publishJoint(sim_.q, sim_.qdot, sim_.gripper_q,crs_joint_pub_);
     publishPoseJoint(sim_.CRS_SatPos, crs_pose_js_pub_);
     publishPoseJoint(sim_.TGT_SatPos, tgt_pose_js_pub_);
     publishGripper(sim_.gripper_q, gripper_q_pub_);
@@ -107,18 +107,46 @@ private:
     pub->publish(msg);
   }
 
-  void publishJoint(const Eigen::VectorXd& q, const Eigen::VectorXd& qdot, const rclcpp::Publisher<sensor_msgs::msg::JointState>::SharedPtr& pub) {
-    sensor_msgs::msg::JointState msg;
-    msg.header.stamp = now();
-    static const std::array<std::string, 7> names = {"joint1","joint2","joint3","joint4","joint5","joint6","joint7"};
-    msg.name.assign(names.begin(), names.end());
-    msg.position.resize(7);
-    std::transform(q.data(), q.data()+7, msg.position.begin(), [](double a){ return std::fmod(a + M_PI, 2*M_PI) - M_PI; });
-    msg.velocity.resize(7);
-    std::copy(qdot.data(), qdot.data()+7, msg.velocity.begin());
-    msg.effort.resize(7, 0.0);
-    pub->publish(msg);
-  }
+  void publishJoint(const Eigen::VectorXd& q,
+    const Eigen::VectorXd& qdot,
+    const Eigen::VectorXd& gripper_q,        // size == 2
+    const rclcpp::Publisher<sensor_msgs::msg::JointState>::SharedPtr& pub)
+{
+sensor_msgs::msg::JointState msg;
+msg.header.stamp = now();
+
+static const std::array<std::string, 9> names = {
+"joint1","joint2","joint3","joint4","joint5","joint6","joint7",
+"gripper_r_prismatic","gripper_l_prismatic"};
+msg.name.assign(names.begin(), names.end());
+
+/* ── position ─────────────────────────────────────────── */
+msg.position.resize(9);
+
+// 0~6 : 관절 각도, ±π wrap
+std::transform(q.data(), q.data() + 7, msg.position.begin(),
+   [](double a){
+     constexpr double TWO_PI = 2.0 * M_PI;
+     a = std::fmod(a + M_PI, TWO_PI);   // [0, 2π)
+     if (a < 0) a += TWO_PI;
+     return a - M_PI;                   // (-π, π]
+   });
+
+// 7, 8 : 그리퍼 프리즘 조인트
+msg.position[7] = gripper_q(0);
+msg.position[8] = gripper_q(1);
+
+/* ── velocity ─────────────────────────────────────────── */
+msg.velocity.assign(9, 0.0);            // 전체 0 으로 초기화
+std::copy(qdot.data(), qdot.data() + 7, // 앞 7개만 복사
+msg.velocity.begin());
+
+/* ── effort (빈값) ────────────────────────────────────── */
+msg.effort.assign(9, 0.0);
+
+pub->publish(msg);
+}
+
 
   void publishPoseJoint(const Eigen::VectorXd& pose7, const rclcpp::Publisher<sensor_msgs::msg::JointState>::SharedPtr& pub) {
     sensor_msgs::msg::JointState msg;
@@ -126,10 +154,10 @@ private:
     static const std::array<std::string, 7> names = {"qw","qx","qy","qz","x","y","z"};
     msg.name.assign(names.begin(), names.end());
     msg.position.resize(7);
-    msg.position[0] = pose7(1);
-    msg.position[1] = pose7(2);
-    msg.position[2] = pose7(3);
-    msg.position[3] = pose7(0);
+    msg.position[0] = pose7(0);
+    msg.position[1] = pose7(1);
+    msg.position[2] = pose7(2);
+    msg.position[3] = pose7(3);
     msg.position[4] = pose7(4);
     msg.position[5] = pose7(5);
     msg.position[6] = pose7(6);
